@@ -41,8 +41,9 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Vista previa** de la siguiente pieza (opcional).
 - **Sistema de puntuación** clásico de Tetris (100 / 300 / 500 / 800 multiplicado por nivel).
 - **Niveles** que aumentan cada 10 líneas y, con la velocidad progresiva activada, aceleran la caída.
-- **Opciones de partida**: antes de empezar (y en Game Over) se puede activar o desactivar la vista previa de la siguiente pieza y la velocidad progresiva. Ninguna puede cambiarse durante una partida.
-- **Pausa** y **Game Over** con opción de reinicio.
+- **Opciones de partida**: antes de empezar (y en Game Over) se puede activar o desactivar la vista previa de la siguiente pieza y la velocidad progresiva, y elegir el **nivel inicial** (1–10). Ninguna puede cambiarse durante una partida.
+- **Menú de pausa** con Reanudar, Reiniciar, Ver controles y Nivel inicial (para la próxima partida).
+- **Game Over** con opción de reinicio.
 
 ---
 
@@ -85,9 +86,18 @@ Después abre `http://localhost:8000` en el navegador.
 | `↑` o `X` | Rotar la pieza en sentido horario |
 | `↓`       | Soft drop (bajar más rápido)      |
 | `Espacio` | Hard drop (caída instantánea)     |
-| `P`       | Pausar / reanudar                 |
+| `P` o `Esc` | Abrir / cerrar el menú de pausa |
 
 Al cargar la página aparece la pantalla **NUEVA PARTIDA** con las opciones; pulsa **Comenzar** para jugar. Las opciones vuelven a mostrarse en **Game Over** antes de reiniciar (no en la pausa).
+
+Al pausar (`P` o `Esc`) se abre el **menú de pausa**:
+
+- **Reanudar**: vuelve al juego (también con `P` o `Esc`).
+- **Reiniciar**: empieza una partida nueva sin recargar la página.
+- **Ver controles**: despliega la lista de teclas dentro del menú.
+- **Nivel inicial**: elige con qué nivel (1–10) empezará la próxima partida; es el mismo valor que el selector de las opciones.
+
+Mientras el menú está abierto el juego ignora todas las teclas salvo `P`/`Esc`, y al reanudar las teclas que sigan pulsadas no actúan hasta que se vuelvan a pulsar, para evitar movimientos accidentales. `Esc` no hace nada en las pantallas de inicio y Game Over.
 
 Además, el switch de la esquina superior derecha alterna entre el tema **oscuro** (por defecto) y el **claro**. La preferencia se guarda en `localStorage`.
 
@@ -103,7 +113,7 @@ Define la estructura visual:
 
 - Un `<canvas id="board">` de **300 × 600** píxeles donde se renderiza el tablero.
 - Un panel lateral con `SCORE`, `LINES`, `LEVEL`, vista de la siguiente pieza y la lista de controles.
-- Un overlay para la pantalla de inicio (**NUEVA PARTIDA**, con las opciones) y los estados **PAUSA** y **GAME OVER**.
+- Un overlay para la pantalla de inicio (**NUEVA PARTIDA**, con las opciones) y los estados **PAUSA** (con su menú `#pause-menu`) y **GAME OVER**.
 
 ### 2. `style.css`
 
@@ -120,8 +130,8 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Game loop** (`loop`): basado en `requestAnimationFrame`, acumula el tiempo transcurrido y baja la pieza una fila cuando se supera `dropInterval`.
 - **Limpieza de líneas** (`clearLines`): recorre el tablero de abajo hacia arriba; cada fila completa se elimina y se inserta una vacía en la cima.
 - **Puntuación**: usa la tabla clásica `[0, 100, 300, 500, 800]` multiplicada por el nivel actual; el hard drop suma 2 puntos por celda recorrida y el soft drop 1 punto por fila.
-- **Opciones** (`settings`): `init()` lee las casillas del overlay al empezar cada partida y las fija hasta la siguiente; si la vista previa está desactivada se oculta la sección NEXT.
-- **Nivel y velocidad**: el nivel sube cada 10 líneas; con la velocidad progresiva activada, la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos. Desactivada, se queda en `1000` ms (el nivel sigue multiplicando la puntuación).
+- **Opciones** (`settings`): `init()` lee las casillas y el nivel inicial del overlay al empezar cada partida y los fija hasta la siguiente; si la vista previa está desactivada se oculta la sección NEXT.
+- **Nivel y velocidad**: el nivel es `max(nivel inicial, floor(líneas / 10) + 1)`; con la velocidad progresiva activada, la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos. Desactivada, se queda en `1000` ms (el nivel sigue multiplicando la puntuación).
 - **Ghost piece** (`ghostY`): proyecta la posición final de la pieza actual hacia abajo y la dibuja con `globalAlpha = 0.2`.
 
 ### Flujo del juego
@@ -142,6 +152,11 @@ init()
      └─ requestAnimationFrame(loop)
 
    keydown → mover / rotar / soft-drop / hard-drop / pausa
+
+   P / Esc → togglePause()
+     ├─ pausa: cancela el loop y muestra el menú (Reanudar · Reiniciar · Ver controles · Nivel inicial)
+     │         solo P / Esc tienen efecto mientras está abierto
+     └─ reanudar: oculta el overlay, ignora teclas mantenidas y vuelve a llamar a loop()
 ```
 
 Cuando una pieza recién generada ya colisiona al aparecer (`spawn`), se dispara `endGame()` y se muestra el overlay de **Game Over**.

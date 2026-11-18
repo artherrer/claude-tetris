@@ -272,6 +272,71 @@ kbd {
   accent-color: var(--accent);
 }
 
+/* ---- Menú de pausa ---- */
+.pause-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: stretch;
+  min-width: 200px;
+}
+
+.menu-btn {
+  background: var(--board-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: border-color 0.15s;
+}
+
+.menu-btn:hover {
+  border-color: var(--accent);
+}
+
+#resume-btn {
+  background: var(--accent);
+  color: var(--accent-contrast);
+  border-color: var(--accent);
+}
+
+#resume-btn:hover {
+  background: var(--accent-hover);
+}
+
+.pause-controls {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+  padding: 4px 8px;
+}
+
+.pause-level,
+.options label:has(select) {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.pause-menu select,
+.options select {
+  background: var(--board-bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
 /* Al final para ganar a los display de cada componente */
 .hidden {
   display: none !important;
