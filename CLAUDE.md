@@ -17,7 +17,7 @@ To verify a change, load the page in a browser and play. No automated checks exi
 
 ## Architecture
 
-- `index.html` holds the DOM: `#board` canvas (300×600), the side panel (`#score`, `#lines`, `#level`, `#next-canvas` 120×120), and one shared `#overlay` for the start screen (NUEVA PARTIDA), PAUSA and GAME OVER. The overlay's `#options` checkboxes (`#opt-next`, `#opt-speed`) are shown only on the start and GAME OVER screens, never during pause.
+- `index.html` holds the DOM: `#board` canvas (300×600), the side panel (`#score`, `#lines`, `#level`, `#next-canvas` 120×120), and one shared `#overlay` for the start screen (NUEVA PARTIDA), PAUSA and GAME OVER. The overlay's `#options` checkboxes (`#opt-next`, `#opt-speed`) are shown only on the start and GAME OVER screens, never during pause. The same goes for the `#records` table (plus `#new-record` and the `#name-entry` input/Guardar button when the finished game's score qualifies).
 - `style.css` is the dark/retro styling. `.hidden` toggles the overlay.
 - `game.js` holds all the logic in one script. It is not a module: it uses global mutable state (`board`, `current`, `next`, `score`, `lines`, `level`, `paused`, `gameOver`, `dropInterval`, `animId`, …). `init()` resets all of that state and is also the restart handler.
 
@@ -29,6 +29,7 @@ Key invariants in `game.js`:
 - **Piece lifecycle:** `lockPiece()` → `merge()` → `clearLines()` (updates score, lines, level and `dropInterval`) → `spawn()`. `spawn()` promotes `next` to `current`, and if the new piece collides immediately it calls `endGame()`.
 - **Game loop:** `loop()` runs on `requestAnimationFrame` and accumulates `dropAccum` until it reaches `dropInterval`. Pausing and game over stop it with `cancelAnimationFrame(animId)`. Unpausing restarts it by calling `loop()` directly.
 - **Options are fixed per game:** `init()` snapshots the checkboxes into `settings` (`showNext`, `progressiveSpeed`), and the rest of the code reads only `settings`. The page doesn't start a game on load: it sets `gameOver = true` and shows the start overlay until the button calls `init()`.
+- **Records:** stored in `localStorage` under `tetris-records` as `{ top: [{name, score, lines, date}], bestCombo, maxLines }`; `loadRecords()` returns empty records on any invalid shape, and every storage access is in try/catch. `endGame()` always updates `bestCombo`/`maxLines` and sets `pendingRecord` if `score > 0` qualifies for the top `MAX_RECORDS`; `saveRecord()` clears the flag (no double save) and sets `highlightIndex`. `showOverlay()` renders the table (via `textContent`, never `innerHTML`) whenever it shows options. The document keydown handler ignores events targeting `#player-name`. `combo` counts consecutive locks that clear lines (`clearLines()` resets it on a 0-line lock); `maxCombo` is per game.
 - **Scoring:** `LINE_SCORES[cleared] * level`, plus 1 point per soft-drop row and 2 per hard-drop cell. The level is `floor(lines / 10) + 1`, and `dropInterval = max(100, 1000 − (level − 1) × 90)` only when `settings.progressiveSpeed` is on (otherwise it stays at 1000).
 
 The README (in Spanish) documents the controls, the game flow and the tunable constants.

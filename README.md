@@ -43,6 +43,7 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Niveles** que aumentan cada 10 líneas y, con la velocidad progresiva activada, aceleran la caída.
 - **Opciones de partida**: antes de empezar (y en Game Over) se puede activar o desactivar la vista previa de la siguiente pieza y la velocidad progresiva. Ninguna puede cambiarse durante una partida.
 - **Pausa** y **Game Over** con opción de reinicio.
+- **Récords locales**: top 5 de puntuaciones con nombre del jugador, mejor combo y líneas máximas, guardados en `localStorage`.
 
 ---
 
@@ -89,6 +90,8 @@ Después abre `http://localhost:8000` en el navegador.
 
 Al cargar la página aparece la pantalla **NUEVA PARTIDA** con las opciones; pulsa **Comenzar** para jugar. Las opciones vuelven a mostrarse en **Game Over** antes de reiniciar (no en la pausa).
 
+En la pantalla de inicio y en **Game Over** se muestra la tabla de **récords** (top 5, mejor combo y líneas máximas). Si la puntuación de la partida entra en el top aparece «¡Nuevo récord!» con un campo para el nombre (máx. 12 caracteres): pulsa **Guardar** o `Enter` y la entrada queda resaltada en la tabla (si reinicias sin guardar, se guarda con el nombre escrito). **Borrar récords** los elimina tras pedir confirmación.
+
 Además, el switch de la esquina superior derecha alterna entre el tema **oscuro** (por defecto) y el **claro**. La preferencia se guarda en `localStorage`.
 
 ---
@@ -122,6 +125,8 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Puntuación**: usa la tabla clásica `[0, 100, 300, 500, 800]` multiplicada por el nivel actual; el hard drop suma 2 puntos por celda recorrida y el soft drop 1 punto por fila.
 - **Opciones** (`settings`): `init()` lee las casillas del overlay al empezar cada partida y las fija hasta la siguiente; si la vista previa está desactivada se oculta la sección NEXT.
 - **Nivel y velocidad**: el nivel sube cada 10 líneas; con la velocidad progresiva activada, la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos. Desactivada, se queda en `1000` ms (el nivel sigue multiplicando la puntuación).
+- **Combo** (`combo`, `maxCombo`): cada bloqueo que limpia al menos una línea suma 1 al combo; uno que no limpia ninguna lo reinicia a 0.
+- **Récords** (`loadRecords` / `saveRecords`): se guardan en `localStorage` bajo la clave `tetris-records` como `{ top: [{ name, score, lines, date }], bestCombo, maxLines }`. Si los datos no tienen esa forma se descartan. En cada Game Over se actualizan el mejor combo y las líneas máximas; la puntuación solo entra en el top si es mayor que 0 y supera a la quinta.
 - **Ghost piece** (`ghostY`): proyecta la posición final de la pieza actual hacia abajo y la dibuja con `globalAlpha = 0.2`.
 
 ### Flujo del juego
@@ -184,6 +189,7 @@ Algunos parámetros fáciles de tunear en `game.js`:
 | `COLORS`       | Paleta de colores por tipo de pieza      | 7 colores             |
 | `LINE_SCORES`  | Puntos por 1, 2, 3 o 4 líneas eliminadas | `[0,100,300,500,800]` |
 | `dropInterval` | Velocidad inicial de caída en ms         | `1000`                |
+| `MAX_RECORDS`  | Puntuaciones guardadas en el top         | `5`                   |
 
 > Si cambias `COLS`, `ROWS` o `BLOCK`, recuerda ajustar también `width` y `height` del `<canvas id="board">` en `index.html` para que coincida (`COLS × BLOCK` × `ROWS × BLOCK`).
 
