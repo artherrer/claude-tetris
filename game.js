@@ -101,6 +101,8 @@ const PIECES = [
 ];
 
 const LINE_SCORES = [0, 100, 300, 500, 800];
+const RECORDS_KEY = 'tetris-records';
+const MAX_RECORDS = 5;
 
 const canvas = document.getElementById('board');
 const ctx = canvas.getContext('2d');
@@ -117,6 +119,14 @@ const optionsEl = document.getElementById('options');
 const optNext = document.getElementById('opt-next');
 const optSpeed = document.getElementById('opt-speed');
 const nextSection = document.getElementById('next-section');
+const newRecordEl = document.getElementById('new-record');
+const nameEntry = document.getElementById('name-entry');
+const playerName = document.getElementById('player-name');
+const saveRecordBtn = document.getElementById('save-record-btn');
+const recordsEl = document.getElementById('records');
+const recordsBody = document.getElementById('records-body');
+const recordsStats = document.getElementById('records-stats');
+const resetRecordsBtn = document.getElementById('reset-records-btn');
 const optLevel = document.getElementById('opt-level');
 const pauseMenu = document.getElementById('pause-menu');
 const pauseLevel = document.getElementById('pause-level');
@@ -130,6 +140,12 @@ const MAX_START_LEVEL = 10;
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 // Opciones fijadas al empezar cada partida (init); no cambian durante el juego.
 let settings;
+// Combo: bloqueos consecutivos que limpian al menos una línea.
+let combo = 0, maxCombo = 0;
+// isNewRecord: la puntuación de la partida terminada entra en el top.
+// pendingRecord: aún falta guardarla (evita guardarla dos veces).
+// highlightIndex: posición en el top de la entrada recién guardada (-1 si ninguna).
+let isNewRecord = false, pendingRecord = false, highlightIndex = -1;
 // Tras reanudar se ignoran las repeticiones de teclas mantenidas hasta una pulsación nueva.
 let ignoreRepeat = false;
 
@@ -194,7 +210,11 @@ function clearLines() {
       r++;
     }
   }
-  if (cleared) {
+  if (!cleared) {
+    combo = 0; // un bloqueo sin líneas rompe el combo
+  } else {
+    combo++;
+    maxCombo = Math.max(maxCombo, combo);
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.max(settings.startLevel, Math.floor(lines / 10) + 1);
@@ -309,12 +329,92 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
-// Las opciones solo se muestran fuera de una partida (inicio y game over);
+// ---- Récords (localStorage) ----
+function emptyRecords() {
+  return { top: [], bestCombo: 0, maxLines: 0 };
+}
+
+function isValidEntry(r) {
+  return r && typeof r.name === 'string' && Number.isFinite(r.score) &&
+    Number.isFinite(r.lines) && typeof r.date === 'string';
+}
+
+// Cualquier dato con forma inválida se descarta y se empieza de cero.
+function loadRecords() {
+  try {
+    const data = JSON.parse(localStorage.getItem(RECORDS_KEY));
+    if (data && Array.isArray(data.top) && data.top.every(isValidEntry) &&
+        Number.isFinite(data.bestCombo) && Number.isFinite(data.maxLines)) {
+      const top = data.top.slice().sort((a, b) => b.score - a.score).slice(0, MAX_RECORDS);
+      return { top, bestCombo: data.bestCombo, maxLines: data.maxLines };
+    }
+  } catch (e) {}
+  return emptyRecords();
+}
+
+function saveRecords(records) {
+  try { localStorage.setItem(RECORDS_KEY, JSON.stringify(records)); } catch (e) {}
+}
+
+function qualifies(value, records) {
+  return value > 0 &&
+    (records.top.length < MAX_RECORDS || value > records.top[records.top.length - 1].score);
+}
+
+// Sin innerHTML: los nombres los escribe el jugador.
+function renderRecords(records) {
+  recordsBody.replaceChildren();
+  if (!records.top.length) {
+    const td = document.createElement('td');
+    td.colSpan = 4;
+    td.textContent = 'Sin récords todavía';
+    const tr = document.createElement('tr');
+    tr.appendChild(td);
+    recordsBody.appendChild(tr);
+  }
+  records.top.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (i === highlightIndex) tr.classList.add('highlight');
+    for (const value of [i + 1, r.name, r.score.toLocaleString(), r.lines]) {
+      const td = document.createElement('td');
+      td.textContent = value;
+      tr.appendChild(td);
+    }
+    recordsBody.appendChild(tr);
+  });
+  recordsStats.textContent = `Mejor combo: ${records.bestCombo} · Líneas máx.: ${records.maxLines}`;
+}
+
+function saveRecord() {
+  if (!pendingRecord) return;
+  pendingRecord = false;
+  const records = loadRecords();
+  const entry = {
+    name: playerName.value.trim().slice(0, 12) || 'Jugador',
+    score,
+    lines,
+    date: new Date().toISOString().slice(0, 10),
+  };
+  records.top.push(entry);
+  records.top.sort((a, b) => b.score - a.score);
+  records.top = records.top.slice(0, MAX_RECORDS);
+  highlightIndex = records.top.indexOf(entry);
+  saveRecords(records);
+  playerName.blur();
+  nameEntry.classList.add('hidden');
+  renderRecords(records);
+}
+
+// Las opciones y los récords solo se muestran fuera de una partida (inicio y game over);
 // el menú de pausa solo en la pausa, y entonces sustituye al botón de reinicio.
 function showOverlay(title, text, withOptions, withPauseMenu) {
   overlayTitle.textContent = title;
   overlayScore.textContent = text;
   optionsEl.classList.toggle('hidden', !withOptions);
+  recordsEl.classList.toggle('hidden', !withOptions);
+  newRecordEl.classList.toggle('hidden', !(withOptions && isNewRecord));
+  nameEntry.classList.toggle('hidden', !(withOptions && pendingRecord));
+  if (withOptions) renderRecords(loadRecords());
   pauseMenu.classList.toggle('hidden', !withPauseMenu);
   restartBtn.classList.toggle('hidden', !!withPauseMenu);
   pauseControls.classList.add('hidden'); // la lista de controles empieza plegada
@@ -327,7 +427,15 @@ function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
   draw(); // muestra el tablero final, también cuando el juego termina por teclado
+  // Mejor combo y líneas máximas se actualizan siempre, se guarde o no el nombre.
+  const records = loadRecords();
+  records.bestCombo = Math.max(records.bestCombo, maxCombo);
+  records.maxLines = Math.max(records.maxLines, lines);
+  saveRecords(records);
+  isNewRecord = pendingRecord = qualifies(score, records);
+  highlightIndex = -1;
   showOverlay('GAME OVER', `Puntuación: ${score.toLocaleString()}`, true);
+  if (pendingRecord) { playerName.focus(); playerName.select(); }
 }
 
 function togglePause() {
@@ -376,6 +484,10 @@ function init() {
   score = 0;
   lines = 0;
   level = settings.startLevel;
+  combo = 0;
+  maxCombo = 0;
+  isNewRecord = pendingRecord = false;
+  highlightIndex = -1;
   paused = false;
   gameOver = false;
   ignoreRepeat = true;
@@ -391,6 +503,12 @@ function init() {
 }
 
 document.addEventListener('keydown', e => {
+  if (e.target === playerName) {
+    // Escribiendo el nombre: sin controles del juego. El auto-repeat del Space
+    // que terminó la partida (hard drop) no debe escribirse en el campo.
+    if (e.repeat && e.code === 'Space') e.preventDefault();
+    return;
+  }
   // Con el menú de pausa abierto solo P/Escape hacen algo (Escape no abre la pausa en inicio/game over).
   if (e.code === 'KeyP' || e.code === 'Escape') { if (!e.repeat) togglePause(); return; }
   if (paused || gameOver) return;
@@ -422,7 +540,27 @@ document.addEventListener('keydown', e => {
 
 restartBtn.addEventListener('click', () => {
   restartBtn.blur(); // evita que Space vuelva a activar el botón
+  saveRecord(); // si había un récord sin guardar, se guarda con el nombre del campo
   init();
+});
+
+saveRecordBtn.addEventListener('click', () => {
+  saveRecordBtn.blur();
+  saveRecord();
+});
+
+playerName.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.isComposing) saveRecord();
+});
+
+resetRecordsBtn.addEventListener('click', () => {
+  resetRecordsBtn.blur();
+  if (!confirm('¿Borrar todos los récords?')) return;
+  try { localStorage.removeItem(RECORDS_KEY); } catch (e) {}
+  highlightIndex = -1;
+  isNewRecord = pendingRecord; // un récord guardado ya no está en la tabla
+  newRecordEl.classList.toggle('hidden', !isNewRecord);
+  renderRecords(loadRecords());
 });
 
 // Menú de pausa

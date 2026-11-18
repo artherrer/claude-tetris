@@ -45,6 +45,7 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Menú de pausa** con Reanudar, Reiniciar, Ver controles y Nivel inicial (para la próxima partida).
 - **Game Over** con opción de reinicio.
 - **Skins** (Retro, Neon, Pastel y Pixel art) intercambiables en cualquier momento.
+- **Récords locales**: top 5 de puntuaciones con nombre del jugador, mejor combo y líneas máximas, guardados en `localStorage`.
 
 ---
 
@@ -90,6 +91,8 @@ Después abre `http://localhost:8000` en el navegador.
 | `P` o `Esc` | Abrir / cerrar el menú de pausa |
 
 Al cargar la página aparece la pantalla **NUEVA PARTIDA** con las opciones; pulsa **Comenzar** para jugar. Las opciones vuelven a mostrarse en **Game Over** antes de reiniciar (no en la pausa).
+
+En la pantalla de inicio y en **Game Over** se muestra la tabla de **récords** (top 5, mejor combo y líneas máximas). Si la puntuación de la partida entra en el top aparece «¡Nuevo récord!» con un campo para el nombre (máx. 12 caracteres): pulsa **Guardar** o `Enter` y la entrada queda resaltada en la tabla (si reinicias sin guardar, se guarda con el nombre escrito). **Borrar récords** los elimina tras pedir confirmación.
 
 Al pausar (`P` o `Esc`) se abre el **menú de pausa**:
 
@@ -143,6 +146,8 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Opciones** (`settings`): `init()` lee las casillas y el nivel inicial del overlay al empezar cada partida y los fija hasta la siguiente; si la vista previa está desactivada se oculta la sección NEXT.
 - **Nivel y velocidad**: el nivel es `max(nivel inicial, floor(líneas / 10) + 1)`; con la velocidad progresiva activada, la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos. Desactivada, se queda en `1000` ms (el nivel sigue multiplicando la puntuación).
 - **Skins** (`SKINS`): cada skin tiene su paleta `colors` y su función `draw`; `drawBlock` delega en la skin activa. `applySkin()` la cambia, marca `data-skin` en `<html>` (el CSS de Neon pone el tablero en negro) y redibuja.
+- **Combo** (`combo`, `maxCombo`): cada bloqueo que limpia al menos una línea suma 1 al combo; uno que no limpia ninguna lo reinicia a 0.
+- **Récords** (`loadRecords` / `saveRecords`): se guardan en `localStorage` bajo la clave `tetris-records` como `{ top: [{ name, score, lines, date }], bestCombo, maxLines }`. Si los datos no tienen esa forma se descartan. En cada Game Over se actualizan el mejor combo y las líneas máximas; la puntuación solo entra en el top si es mayor que 0 y supera a la quinta.
 - **Ghost piece** (`ghostY`): proyecta la posición final de la pieza actual hacia abajo y la dibuja con `globalAlpha = 0.2`.
 
 ### Flujo del juego
@@ -210,6 +215,7 @@ Algunos parámetros fáciles de tunear en `game.js`:
 | `SKINS`        | Paleta y dibujo de bloques de cada skin  | 4 skins × 7 colores   |
 | `LINE_SCORES`  | Puntos por 1, 2, 3 o 4 líneas eliminadas | `[0,100,300,500,800]` |
 | `dropInterval` | Velocidad inicial de caída en ms         | `1000`                |
+| `MAX_RECORDS`  | Puntuaciones guardadas en el top         | `5`                   |
 
 > Si cambias `COLS`, `ROWS` o `BLOCK`, recuerda ajustar también `width` y `height` del `<canvas id="board">` en `index.html` para que coincida (`COLS × BLOCK` × `ROWS × BLOCK`).
 

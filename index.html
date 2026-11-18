@@ -59,6 +59,20 @@
       <div class="overlay-box">
         <p id="overlay-title">NUEVA PARTIDA</p>
         <p id="overlay-score"></p>
+        <p id="new-record" class="new-record hidden">¡Nuevo récord!</p>
+        <div id="name-entry" class="name-entry hidden">
+          <input type="text" id="player-name" maxlength="12" value="Jugador" aria-label="Nombre del jugador" />
+          <button id="save-record-btn">Guardar</button>
+        </div>
+        <div id="records" class="records hidden">
+          <span class="label">RÉCORDS</span>
+          <table>
+            <thead><tr><th>#</th><th>Nombre</th><th>Puntos</th><th>Líneas</th></tr></thead>
+            <tbody id="records-body"></tbody>
+          </table>
+          <p id="records-stats" class="records-stats"></p>
+          <button id="reset-records-btn" class="reset-records-btn">Borrar récords</button>
+        </div>
         <fieldset id="options" class="options">
           <legend class="label">OPCIONES</legend>
           <label><input type="checkbox" id="opt-next" checked /> Mostrar pieza siguiente</label>

@@ -304,6 +304,80 @@ kbd {
   accent-color: var(--accent);
 }
 
+/* ---- Récords ---- */
+.new-record {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+
+.name-entry {
+  display: flex;
+  gap: 8px;
+}
+
+.name-entry input {
+  width: 130px;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--board-bg);
+  color: var(--text);
+  font-size: 13px;
+  user-select: text;
+}
+
+.name-entry button,
+.reset-records-btn {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--board-bg);
+  color: var(--text);
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.name-entry button:hover,
+.reset-records-btn:hover {
+  border-color: var(--accent);
+}
+
+.records {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.records table {
+  border-collapse: collapse;
+  font-family: 'Courier New', Courier, monospace;
+  font-size: 12px;
+}
+
+.records th,
+.records td {
+  padding: 2px 8px;
+  text-align: left;
+}
+
+.records th {
+  font-size: 10px;
+  color: var(--label);
+}
+
+.records tr.highlight td {
+  color: var(--accent-contrast);
+  background: var(--accent);
+}
+
+.records-stats {
+  font-size: 11px;
+  color: var(--muted);
+}
+
 /* ---- Menú de pausa ---- */
 .pause-menu {
   display: flex;
