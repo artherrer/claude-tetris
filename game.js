@@ -169,7 +169,7 @@ function drawBlock(context, x, y, colorIndex, size, alpha) {
 }
 
 function drawGrid() {
-  ctx.strokeStyle = '#22222e';
+  ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid');
   ctx.lineWidth = 0.5;
   for (let c = 1; c < COLS; c++) {
     ctx.beginPath();
@@ -300,5 +300,27 @@ document.addEventListener('keydown', e => {
 });
 
 restartBtn.addEventListener('click', init);
+
+const themeToggle = document.getElementById('theme-toggle');
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  const isLight = theme === 'light';
+  themeToggle.setAttribute('aria-checked', isLight);
+  themeToggle.querySelector('.theme-label').textContent = isLight ? 'Claro' : 'Oscuro';
+  // Con el juego en pausa o terminado el loop no redibuja
+  if (current && next) { draw(); drawNext(); }
+}
+
+themeToggle.addEventListener('click', () => {
+  const theme = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  try { localStorage.setItem('theme', theme); } catch (e) {}
+  applyTheme(theme);
+  themeToggle.blur(); // evita que Space/Enter vuelvan a activar el botón
+});
+
+let savedTheme = null;
+try { savedTheme = localStorage.getItem('theme'); } catch (e) {}
+applyTheme(savedTheme === 'light' ? 'light' : 'dark');
 
 init();
