@@ -29,7 +29,7 @@
           <span class="value" id="level">1</span>
         </div>
 
-        <div class="panel-section">
+        <div class="panel-section" id="next-section">
           <span class="label">NEXT</span>
           <canvas id="next-canvas" width="120" height="120"></canvas>
         </div>
@@ -47,11 +47,16 @@
       </aside>
     </div>
 
-    <div id="overlay" class="overlay hidden">
+    <div id="overlay" class="overlay">
       <div class="overlay-box">
-        <p id="overlay-title">GAME OVER</p>
+        <p id="overlay-title">NUEVA PARTIDA</p>
         <p id="overlay-score"></p>
-        <button id="restart-btn">Reiniciar</button>
+        <fieldset id="options" class="options">
+          <legend class="label">OPCIONES</legend>
+          <label><input type="checkbox" id="opt-next" checked /> Mostrar pieza siguiente</label>
+          <label><input type="checkbox" id="opt-speed" checked /> Velocidad progresiva</label>
+        </fieldset>
+        <button id="restart-btn">Comenzar</button>
       </div>
     </div>
   </div>

@@ -17,7 +17,7 @@ To verify a change, load the page in a browser and play. No automated checks exi
 
 ## Architecture
 
-- `index.html` holds the DOM: `#board` canvas (300×600), the side panel (`#score`, `#lines`, `#level`, `#next-canvas` 120×120), and one shared `#overlay` for both PAUSA and GAME OVER.
+- `index.html` holds the DOM: `#board` canvas (300×600), the side panel (`#score`, `#lines`, `#level`, `#next-canvas` 120×120), and one shared `#overlay` for the start screen (NUEVA PARTIDA), PAUSA and GAME OVER. The overlay's `#options` checkboxes (`#opt-next`, `#opt-speed`) are shown only on the start and GAME OVER screens, never during pause.
 - `style.css` is the dark/retro styling. `.hidden` toggles the overlay.
 - `game.js` holds all the logic in one script. It is not a module: it uses global mutable state (`board`, `current`, `next`, `score`, `lines`, `level`, `paused`, `gameOver`, `dropInterval`, `animId`, …). `init()` resets all of that state and is also the restart handler.
 
@@ -28,6 +28,7 @@ Key invariants in `game.js`:
 - **Collision** (`collide`) allows negative `y` (above the board) but rejects out-of-bounds `x` and `y >= ROWS`. All movement, rotation (`tryRotate`, which applies simple ±1/±2 column kicks, not SRS) and the ghost piece (`ghostY`) go through it.
 - **Piece lifecycle:** `lockPiece()` → `merge()` → `clearLines()` (updates score, lines, level and `dropInterval`) → `spawn()`. `spawn()` promotes `next` to `current`, and if the new piece collides immediately it calls `endGame()`.
 - **Game loop:** `loop()` runs on `requestAnimationFrame` and accumulates `dropAccum` until it reaches `dropInterval`. Pausing and game over stop it with `cancelAnimationFrame(animId)`. Unpausing restarts it by calling `loop()` directly.
-- **Scoring:** `LINE_SCORES[cleared] * level`, plus 1 point per soft-drop row and 2 per hard-drop cell. The level is `floor(lines / 10) + 1`, and `dropInterval = max(100, 1000 − (level − 1) × 90)`.
+- **Options are fixed per game:** `init()` snapshots the checkboxes into `settings` (`showNext`, `progressiveSpeed`), and the rest of the code reads only `settings`. The page doesn't start a game on load: it sets `gameOver = true` and shows the start overlay until the button calls `init()`.
+- **Scoring:** `LINE_SCORES[cleared] * level`, plus 1 point per soft-drop row and 2 per hard-drop cell. The level is `floor(lines / 10) + 1`, and `dropInterval = max(100, 1000 − (level − 1) × 90)` only when `settings.progressiveSpeed` is on (otherwise it stays at 1000).
 
 The README (in Spanish) documents the controls, the game flow and the tunable constants.
