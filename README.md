@@ -44,6 +44,7 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Opciones de partida**: antes de empezar (y en Game Over) se puede activar o desactivar la vista previa de la siguiente pieza y la velocidad progresiva, y elegir el **nivel inicial** (1–10). Ninguna puede cambiarse durante una partida.
 - **Menú de pausa** con Reanudar, Reiniciar, Ver controles y Nivel inicial (para la próxima partida).
 - **Game Over** con opción de reinicio.
+- **Skins** (Retro, Neon, Pastel y Pixel art) intercambiables en cualquier momento.
 
 ---
 
@@ -101,6 +102,15 @@ Mientras el menú está abierto el juego ignora todas las teclas salvo `P`/`Esc`
 
 Además, el switch de la esquina superior derecha alterna entre el tema **oscuro** (por defecto) y el **claro**. La preferencia se guarda en `localStorage`.
 
+Debajo, el selector **Skin** cambia la apariencia de los bloques en cualquier momento (incluso a mitad de partida), sin recargar la página:
+
+- **Retro**: bloques cuadrados con colores planos (por defecto).
+- **Neon**: fondo negro y bloques con efecto _glow_ (`shadowBlur` del canvas).
+- **Pastel**: colores suaves y esquinas redondeadas.
+- **Pixel art**: una textura de píxeles claros y oscuros sobre cada bloque.
+
+La skin elegida también se guarda en `localStorage`.
+
 ---
 
 ## Cómo funciona
@@ -123,7 +133,7 @@ Aporta el aspecto visual con estética _dark / retro arcade_: fondo oscuro, tipo
 
 Contiene toda la lógica del juego. A grandes rasgos:
 
-- **Modelo del tablero**: una matriz `ROWS × COLS` donde cada celda guarda `0` (vacía) o un índice de color (1–7) que identifica la pieza.
+- **Modelo del tablero**: una matriz `ROWS × COLS` donde cada celda guarda `0` (vacía) o el tipo de pieza (1–7), que también es el índice de color en la paleta de la skin activa.
 - **Piezas**: definidas como matrices cuadradas. Para rotar se calcula la transposición + reverso de filas (`rotateCW`).
 - **Detección de colisiones** (`collide`): comprueba que ninguna celda de la pieza salga del tablero ni se solape con bloques ya fijados.
 - **Wall kicks** (`tryRotate`): si la rotación choca, intenta desplazar la pieza ±1 y ±2 columnas antes de descartar el giro.
@@ -132,6 +142,7 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Puntuación**: usa la tabla clásica `[0, 100, 300, 500, 800]` multiplicada por el nivel actual; el hard drop suma 2 puntos por celda recorrida y el soft drop 1 punto por fila.
 - **Opciones** (`settings`): `init()` lee las casillas y el nivel inicial del overlay al empezar cada partida y los fija hasta la siguiente; si la vista previa está desactivada se oculta la sección NEXT.
 - **Nivel y velocidad**: el nivel es `max(nivel inicial, floor(líneas / 10) + 1)`; con la velocidad progresiva activada, la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos. Desactivada, se queda en `1000` ms (el nivel sigue multiplicando la puntuación).
+- **Skins** (`SKINS`): cada skin tiene su paleta `colors` y su función `draw`; `drawBlock` delega en la skin activa. `applySkin()` la cambia, marca `data-skin` en `<html>` (el CSS de Neon pone el tablero en negro) y redibuja.
 - **Ghost piece** (`ghostY`): proyecta la posición final de la pieza actual hacia abajo y la dibuja con `globalAlpha = 0.2`.
 
 ### Flujo del juego
@@ -196,7 +207,7 @@ Algunos parámetros fáciles de tunear en `game.js`:
 | `COLS`         | Columnas del tablero                     | `10`                  |
 | `ROWS`         | Filas del tablero                        | `20`                  |
 | `BLOCK`        | Tamaño en píxeles de cada celda          | `30`                  |
-| `COLORS`       | Paleta de colores por tipo de pieza      | 7 colores             |
+| `SKINS`        | Paleta y dibujo de bloques de cada skin  | 4 skins × 7 colores   |
 | `LINE_SCORES`  | Puntos por 1, 2, 3 o 4 líneas eliminadas | `[0,100,300,500,800]` |
 | `dropInterval` | Velocidad inicial de caída en ms         | `1000`                |
 
