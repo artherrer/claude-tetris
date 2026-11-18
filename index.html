@@ -49,7 +49,7 @@
             <li><kbd>↑</kbd> rotar</li>
             <li><kbd>↓</kbd> bajar</li>
             <li><kbd>Space</kbd> caída</li>
-            <li><kbd>P</kbd> pausa</li>
+            <li><kbd>P</kbd><kbd>Esc</kbd> pausa</li>
           </ul>
         </div>
       </aside>
@@ -63,7 +63,21 @@
           <legend class="label">OPCIONES</legend>
           <label><input type="checkbox" id="opt-next" checked /> Mostrar pieza siguiente</label>
           <label><input type="checkbox" id="opt-speed" checked /> Velocidad progresiva</label>
+          <label>Nivel inicial <select id="opt-level"></select></label>
         </fieldset>
+        <div id="pause-menu" class="pause-menu hidden">
+          <button id="resume-btn" class="menu-btn">Reanudar</button>
+          <button id="pause-restart-btn" class="menu-btn">Reiniciar</button>
+          <button id="controls-btn" class="menu-btn" aria-expanded="false" aria-controls="pause-controls">Ver controles</button>
+          <ul id="pause-controls" class="pause-controls hidden">
+            <li><kbd>←</kbd><kbd>→</kbd> mover</li>
+            <li><kbd>↑</kbd><kbd>X</kbd> rotar</li>
+            <li><kbd>↓</kbd> bajar</li>
+            <li><kbd>Space</kbd> caída</li>
+            <li><kbd>P</kbd><kbd>Esc</kbd> pausa</li>
+          </ul>
+          <label class="pause-level">Nivel inicial (próxima partida) <select id="pause-level"></select></label>
+        </div>
         <button id="restart-btn">Comenzar</button>
       </div>
     </div>
