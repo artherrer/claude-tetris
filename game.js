@@ -39,8 +39,14 @@ const overlay = document.getElementById('overlay');
 const overlayTitle = document.getElementById('overlay-title');
 const overlayScore = document.getElementById('overlay-score');
 const restartBtn = document.getElementById('restart-btn');
+const optionsEl = document.getElementById('options');
+const optNext = document.getElementById('opt-next');
+const optSpeed = document.getElementById('opt-speed');
+const nextSection = document.getElementById('next-section');
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
+// Opciones fijadas al empezar cada partida (init); no cambian durante el juego.
+let settings;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -107,7 +113,7 @@ function clearLines() {
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
     level = Math.floor(lines / 10) + 1;
-    dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    if (settings.progressiveSpeed) dropInterval = Math.max(100, 1000 - (level - 1) * 90);
     updateHUD();
   }
 }
@@ -218,12 +224,20 @@ function drawNext() {
       drawBlock(nextCtx, offX + c, offY + r, shape[r][c], NB);
 }
 
+// Las opciones solo se muestran fuera de una partida (inicio y game over).
+function showOverlay(title, text, withOptions) {
+  overlayTitle.textContent = title;
+  overlayScore.textContent = text;
+  optionsEl.classList.toggle('hidden', !withOptions);
+  restartBtn.textContent = current ? 'Reiniciar' : 'Comenzar';
+  overlay.classList.remove('hidden');
+}
+
 function endGame() {
   gameOver = true;
   cancelAnimationFrame(animId);
-  overlayTitle.textContent = 'GAME OVER';
-  overlayScore.textContent = `Puntuación: ${score.toLocaleString()}`;
-  overlay.classList.remove('hidden');
+  draw(); // muestra el tablero final, también cuando el juego termina por teclado
+  showOverlay('GAME OVER', `Puntuación: ${score.toLocaleString()}`, true);
 }
 
 function togglePause() {
@@ -234,9 +248,7 @@ function togglePause() {
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    overlayTitle.textContent = 'PAUSA';
-    overlayScore.textContent = '';
-    overlay.classList.remove('hidden');
+    showOverlay('PAUSA', '', false);
   }
 }
 
@@ -250,6 +262,9 @@ function loop(ts) {
       current.y++;
     } else {
       lockPiece();
+      // lockPiece() puede terminar el juego; cancelAnimationFrame no detiene
+      // el frame en curso, así que no hay que reprogramar el loop.
+      if (gameOver) return;
     }
   }
   draw();
@@ -257,6 +272,8 @@ function loop(ts) {
 }
 
 function init() {
+  settings = { showNext: optNext.checked, progressiveSpeed: optSpeed.checked };
+  nextSection.classList.toggle('hidden', !settings.showNext);
   board = createBoard();
   score = 0;
   lines = 0;
@@ -299,7 +316,10 @@ document.addEventListener('keydown', e => {
   updateHUD();
 });
 
-restartBtn.addEventListener('click', init);
+restartBtn.addEventListener('click', () => {
+  restartBtn.blur(); // evita que Space vuelva a activar el botón
+  init();
+});
 
 const themeToggle = document.getElementById('theme-toggle');
 
@@ -310,6 +330,7 @@ function applyTheme(theme) {
   themeToggle.querySelector('.theme-label').textContent = isLight ? 'Claro' : 'Oscuro';
   // Con el juego en pausa o terminado el loop no redibuja
   if (current && next) { draw(); drawNext(); }
+  else { ctx.clearRect(0, 0, canvas.width, canvas.height); drawGrid(); } // pantalla de inicio
 }
 
 themeToggle.addEventListener('click', () => {
@@ -323,4 +344,6 @@ let savedTheme = null;
 try { savedTheme = localStorage.getItem('theme'); } catch (e) {}
 applyTheme(savedTheme === 'light' ? 'light' : 'dark');
 
-init();
+// Pantalla de inicio (applyTheme ya dibujó el tablero vacío): opciones hasta que se pulse "Comenzar".
+gameOver = true;
+showOverlay('NUEVA PARTIDA', '', true);

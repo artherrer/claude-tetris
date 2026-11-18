@@ -38,9 +38,10 @@ Es una versión jugable del Tetris clásico con todas las mecánicas que esperar
 - **Rotación** con _wall kicks_ básicos (pequeños desplazamientos para que la pieza pueda rotar pegada a la pared).
 - **Soft drop** (bajada acelerada) y **hard drop** (caída instantánea).
 - **Pieza fantasma** (_ghost piece_): muestra dónde aterrizará la pieza actual.
-- **Vista previa** de la siguiente pieza.
+- **Vista previa** de la siguiente pieza (opcional).
 - **Sistema de puntuación** clásico de Tetris (100 / 300 / 500 / 800 multiplicado por nivel).
-- **Niveles** que aumentan cada 10 líneas y aceleran la caída.
+- **Niveles** que aumentan cada 10 líneas y, con la velocidad progresiva activada, aceleran la caída.
+- **Opciones de partida**: antes de empezar (y en Game Over) se puede activar o desactivar la vista previa de la siguiente pieza y la velocidad progresiva. Ninguna puede cambiarse durante una partida.
 - **Pausa** y **Game Over** con opción de reinicio.
 
 ---
@@ -86,6 +87,8 @@ Después abre `http://localhost:8000` en el navegador.
 | `Espacio` | Hard drop (caída instantánea)     |
 | `P`       | Pausar / reanudar                 |
 
+Al cargar la página aparece la pantalla **NUEVA PARTIDA** con las opciones; pulsa **Comenzar** para jugar. Las opciones vuelven a mostrarse en **Game Over** antes de reiniciar (no en la pausa).
+
 Además, el switch de la esquina superior derecha alterna entre el tema **oscuro** (por defecto) y el **claro**. La preferencia se guarda en `localStorage`.
 
 ---
@@ -100,7 +103,7 @@ Define la estructura visual:
 
 - Un `<canvas id="board">` de **300 × 600** píxeles donde se renderiza el tablero.
 - Un panel lateral con `SCORE`, `LINES`, `LEVEL`, vista de la siguiente pieza y la lista de controles.
-- Un overlay para los estados **PAUSA** y **GAME OVER**.
+- Un overlay para la pantalla de inicio (**NUEVA PARTIDA**, con las opciones) y los estados **PAUSA** y **GAME OVER**.
 
 ### 2. `style.css`
 
@@ -117,13 +120,16 @@ Contiene toda la lógica del juego. A grandes rasgos:
 - **Game loop** (`loop`): basado en `requestAnimationFrame`, acumula el tiempo transcurrido y baja la pieza una fila cuando se supera `dropInterval`.
 - **Limpieza de líneas** (`clearLines`): recorre el tablero de abajo hacia arriba; cada fila completa se elimina y se inserta una vacía en la cima.
 - **Puntuación**: usa la tabla clásica `[0, 100, 300, 500, 800]` multiplicada por el nivel actual; el hard drop suma 2 puntos por celda recorrida y el soft drop 1 punto por fila.
-- **Nivel y velocidad**: el nivel sube cada 10 líneas; la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos.
+- **Opciones** (`settings`): `init()` lee las casillas del overlay al empezar cada partida y las fija hasta la siguiente; si la vista previa está desactivada se oculta la sección NEXT.
+- **Nivel y velocidad**: el nivel sube cada 10 líneas; con la velocidad progresiva activada, la velocidad de caída se calcula como `max(100, 1000 − (level − 1) × 90)` milisegundos. Desactivada, se queda en `1000` ms (el nivel sigue multiplicando la puntuación).
 - **Ghost piece** (`ghostY`): proyecta la posición final de la pieza actual hacia abajo y la dibuja con `globalAlpha = 0.2`.
 
 ### Flujo del juego
 
 ```
+pantalla NUEVA PARTIDA → «Comenzar»
 init()
+  ├─ lee las opciones (settings)
   ├─ createBoard()                  → matriz vacía
   ├─ next = randomPiece()
   ├─ spawn()                        → mueve next a current y genera nueva next

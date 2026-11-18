@@ -244,3 +244,35 @@ kbd {
 .theme-toggle[aria-checked="true"] .track::after {
   transform: translateX(16px);
 }
+
+/* ---- Opciones de partida ---- */
+.options {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  text-align: left;
+}
+
+.options legend {
+  padding: 0 4px;
+}
+
+.options label {
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.options input {
+  accent-color: var(--accent);
+}
+
+/* Al final para ganar a los display de cada componente */
+.hidden {
+  display: none !important;
+}
