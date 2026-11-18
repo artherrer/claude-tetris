@@ -4,16 +4,90 @@ const COLS = 10;
 const ROWS = 20;
 const BLOCK = 30;
 
-const COLORS = [
-  null,
-  '#4dd0e1', // I - cyan
-  '#ffd54f', // O - yellow
-  '#ba68c8', // T - purple
-  '#81c784', // S - green
-  '#e57373', // Z - red
-  '#7986cb', // J - indigo
-  '#ffb74d', // L - orange
-];
+// Skins: cada una define su paleta (índice = tipo de pieza, 0 = vacío) y cómo se
+// dibuja un bloque. draw(context, px, py, size, color) recibe la celda en píxeles.
+const SKINS = {
+  retro: {
+    colors: [
+      null,
+      '#4dd0e1', // I - cyan
+      '#ffd54f', // O - yellow
+      '#ba68c8', // T - purple
+      '#81c784', // S - green
+      '#e57373', // Z - red
+      '#7986cb', // J - indigo
+      '#ffb74d', // L - orange
+    ],
+    draw(context, px, py, size, color) {
+      context.fillStyle = color;
+      context.fillRect(px + 1, py + 1, size - 2, size - 2);
+      // highlight
+      context.fillStyle = 'rgba(255,255,255,0.12)';
+      context.fillRect(px + 1, py + 1, size - 2, 4);
+    },
+  },
+  neon: {
+    colors: [null, '#00f0ff', '#fff200', '#d400ff', '#39ff14', '#ff073a', '#2979ff', '#ff9100'],
+    draw(context, px, py, size, color) {
+      context.shadowColor = color;
+      context.shadowBlur = 12;
+      context.strokeStyle = color;
+      context.lineWidth = 2;
+      context.strokeRect(px + 3, py + 3, size - 6, size - 6);
+      context.shadowBlur = 6;
+      context.fillStyle = color;
+      context.globalAlpha *= 0.35;
+      context.fillRect(px + 5, py + 5, size - 10, size - 10);
+      context.shadowBlur = 0;
+    },
+  },
+  pastel: {
+    colors: [null, '#a8e6ef', '#fff3b0', '#d7b9f0', '#b9e8c0', '#f7b7b7', '#b8c4f0', '#ffd6a8'],
+    draw(context, px, py, size, color) {
+      const x = px + 2, y = py + 2, w = size - 4, h = size - 4, r = size / 5;
+      context.beginPath();
+      if (context.roundRect) {
+        context.roundRect(x, y, w, h, r);
+      } else {
+        context.moveTo(x + r, y);
+        context.lineTo(x + w - r, y);
+        context.quadraticCurveTo(x + w, y, x + w, y + r);
+        context.lineTo(x + w, y + h - r);
+        context.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+        context.lineTo(x + r, y + h);
+        context.quadraticCurveTo(x, y + h, x, y + h - r);
+        context.lineTo(x, y + r);
+        context.quadraticCurveTo(x, y, x + r, y);
+        context.closePath();
+      }
+      context.fillStyle = color;
+      context.fill();
+      context.strokeStyle = 'rgba(255,255,255,0.6)';
+      context.lineWidth = 1.5;
+      context.stroke();
+    },
+  },
+  pixel: {
+    colors: [null, '#00bcd4', '#fdd835', '#8e24aa', '#43a047', '#e53935', '#3949ab', '#fb8c00'],
+    draw(context, px, py, size, color) {
+      context.fillStyle = color;
+      context.fillRect(px, py, size, size);
+      // Textura: rejilla de "píxeles" de 1/6 del bloque con tonos claros y oscuros
+      const p = size / 6;
+      for (let r = 0; r < 6; r++) {
+        for (let c = 0; c < 6; c++) {
+          if (r === 0 || c === 0) context.fillStyle = 'rgba(255,255,255,0.35)';
+          else if (r === 5 || c === 5) context.fillStyle = 'rgba(0,0,0,0.35)';
+          else if ((r + c) % 2 === 0) context.fillStyle = 'rgba(255,255,255,0.12)';
+          else context.fillStyle = 'rgba(0,0,0,0.12)';
+          context.fillRect(px + c * p, py + r * p, p, p);
+        }
+      }
+    },
+  },
+};
+
+let skin = SKINS.retro;
 
 const PIECES = [
   null,
@@ -53,6 +127,15 @@ const recordsEl = document.getElementById('records');
 const recordsBody = document.getElementById('records-body');
 const recordsStats = document.getElementById('records-stats');
 const resetRecordsBtn = document.getElementById('reset-records-btn');
+const optLevel = document.getElementById('opt-level');
+const pauseMenu = document.getElementById('pause-menu');
+const pauseLevel = document.getElementById('pause-level');
+const resumeBtn = document.getElementById('resume-btn');
+const pauseRestartBtn = document.getElementById('pause-restart-btn');
+const controlsBtn = document.getElementById('controls-btn');
+const pauseControls = document.getElementById('pause-controls');
+
+const MAX_START_LEVEL = 10;
 
 let board, current, next, score, lines, level, paused, gameOver, lastTime, dropAccum, dropInterval, animId;
 // Opciones fijadas al empezar cada partida (init); no cambian durante el juego.
@@ -63,6 +146,8 @@ let combo = 0, maxCombo = 0;
 // pendingRecord: aún falta guardarla (evita guardarla dos veces).
 // highlightIndex: posición en el top de la entrada recién guardada (-1 si ninguna).
 let isNewRecord = false, pendingRecord = false, highlightIndex = -1;
+// Tras reanudar se ignoran las repeticiones de teclas mantenidas hasta una pulsación nueva.
+let ignoreRepeat = false;
 
 function createBoard() {
   return Array.from({ length: ROWS }, () => new Array(COLS).fill(0));
@@ -132,10 +217,14 @@ function clearLines() {
     maxCombo = Math.max(maxCombo, combo);
     lines += cleared;
     score += (LINE_SCORES[cleared] || 0) * level;
-    level = Math.floor(lines / 10) + 1;
-    if (settings.progressiveSpeed) dropInterval = Math.max(100, 1000 - (level - 1) * 90);
+    level = Math.max(settings.startLevel, Math.floor(lines / 10) + 1);
+    dropInterval = speedFor(level);
     updateHUD();
   }
+}
+
+function speedFor(lvl) {
+  return settings.progressiveSpeed ? Math.max(100, 1000 - (lvl - 1) * 90) : 1000;
 }
 
 function ghostY() {
@@ -184,14 +273,10 @@ function updateHUD() {
 
 function drawBlock(context, x, y, colorIndex, size, alpha) {
   if (!colorIndex) return;
-  const color = COLORS[colorIndex];
   context.globalAlpha = alpha ?? 1;
-  context.fillStyle = color;
-  context.fillRect(x * size + 1, y * size + 1, size - 2, size - 2);
-  // highlight
-  context.fillStyle = 'rgba(255,255,255,0.12)';
-  context.fillRect(x * size + 1, y * size + 1, size - 2, 4);
+  skin.draw(context, x * size, y * size, size, skin.colors[colorIndex]);
   context.globalAlpha = 1;
+  context.shadowBlur = 0;
 }
 
 function drawGrid() {
@@ -320,8 +405,9 @@ function saveRecord() {
   renderRecords(records);
 }
 
-// Las opciones y los récords solo se muestran fuera de una partida (inicio y game over).
-function showOverlay(title, text, withOptions) {
+// Las opciones y los récords solo se muestran fuera de una partida (inicio y game over);
+// el menú de pausa solo en la pausa, y entonces sustituye al botón de reinicio.
+function showOverlay(title, text, withOptions, withPauseMenu) {
   overlayTitle.textContent = title;
   overlayScore.textContent = text;
   optionsEl.classList.toggle('hidden', !withOptions);
@@ -329,6 +415,10 @@ function showOverlay(title, text, withOptions) {
   newRecordEl.classList.toggle('hidden', !(withOptions && isNewRecord));
   nameEntry.classList.toggle('hidden', !(withOptions && pendingRecord));
   if (withOptions) renderRecords(loadRecords());
+  pauseMenu.classList.toggle('hidden', !withPauseMenu);
+  restartBtn.classList.toggle('hidden', !!withPauseMenu);
+  pauseControls.classList.add('hidden'); // la lista de controles empieza plegada
+  controlsBtn.setAttribute('aria-expanded', 'false');
   restartBtn.textContent = current ? 'Reiniciar' : 'Comenzar';
   overlay.classList.remove('hidden');
 }
@@ -352,11 +442,15 @@ function togglePause() {
   if (gameOver) return;
   paused = !paused;
   if (!paused) {
+    overlay.classList.add('hidden');
+    // Que las flechas/Space no actúen sobre un control del menú que conserve el foco
+    if (overlay.contains(document.activeElement)) document.activeElement.blur();
+    ignoreRepeat = true;
     lastTime = performance.now();
     loop(lastTime);
   } else {
     cancelAnimationFrame(animId);
-    showOverlay('PAUSA', '', false);
+    showOverlay('PAUSA', '', false, true);
   }
 }
 
@@ -380,19 +474,24 @@ function loop(ts) {
 }
 
 function init() {
-  settings = { showNext: optNext.checked, progressiveSpeed: optSpeed.checked };
+  settings = {
+    showNext: optNext.checked,
+    progressiveSpeed: optSpeed.checked,
+    startLevel: Number(optLevel.value) || 1,
+  };
   nextSection.classList.toggle('hidden', !settings.showNext);
   board = createBoard();
   score = 0;
   lines = 0;
-  level = 1;
+  level = settings.startLevel;
   combo = 0;
   maxCombo = 0;
   isNewRecord = pendingRecord = false;
   highlightIndex = -1;
   paused = false;
   gameOver = false;
-  dropInterval = 1000;
+  ignoreRepeat = true;
+  dropInterval = speedFor(level);
   dropAccum = 0;
   lastTime = performance.now();
   next = randomPiece();
@@ -410,8 +509,13 @@ document.addEventListener('keydown', e => {
     if (e.repeat && e.code === 'Space') e.preventDefault();
     return;
   }
-  if (e.code === 'KeyP') { togglePause(); return; }
+  // Con el menú de pausa abierto solo P/Escape hacen algo (Escape no abre la pausa en inicio/game over).
+  if (e.code === 'KeyP' || e.code === 'Escape') { if (!e.repeat) togglePause(); return; }
   if (paused || gameOver) return;
+  if (ignoreRepeat) {
+    if (e.repeat) return;
+    ignoreRepeat = false;
+  }
   switch (e.code) {
     case 'ArrowLeft':
       if (!collide(current.shape, current.x - 1, current.y)) current.x--;
@@ -459,6 +563,31 @@ resetRecordsBtn.addEventListener('click', () => {
   renderRecords(loadRecords());
 });
 
+// Menú de pausa
+resumeBtn.addEventListener('click', () => {
+  resumeBtn.blur();
+  if (paused) togglePause();
+});
+
+pauseRestartBtn.addEventListener('click', () => {
+  pauseRestartBtn.blur();
+  init();
+});
+
+controlsBtn.addEventListener('click', () => {
+  controlsBtn.blur();
+  const hidden = pauseControls.classList.toggle('hidden');
+  controlsBtn.setAttribute('aria-expanded', String(!hidden));
+});
+
+// Nivel inicial: dos selectores sincronizados (opciones y menú de pausa); se aplica en la próxima partida.
+for (const sel of [optLevel, pauseLevel]) {
+  for (let l = 1; l <= MAX_START_LEVEL; l++) sel.add(new Option(String(l), String(l)));
+  sel.addEventListener('change', () => {
+    optLevel.value = pauseLevel.value = sel.value;
+  });
+}
+
 const themeToggle = document.getElementById('theme-toggle');
 
 function applyTheme(theme) {
@@ -466,7 +595,11 @@ function applyTheme(theme) {
   const isLight = theme === 'light';
   themeToggle.setAttribute('aria-checked', isLight);
   themeToggle.querySelector('.theme-label').textContent = isLight ? 'Claro' : 'Oscuro';
-  // Con el juego en pausa o terminado el loop no redibuja
+  redraw();
+}
+
+// Con el juego en pausa o terminado el loop no redibuja
+function redraw() {
   if (current && next) { draw(); drawNext(); }
   else { ctx.clearRect(0, 0, canvas.width, canvas.height); drawGrid(); } // pantalla de inicio
 }
@@ -477,6 +610,27 @@ themeToggle.addEventListener('click', () => {
   applyTheme(theme);
   themeToggle.blur(); // evita que Space/Enter vuelvan a activar el botón
 });
+
+const skinSelect = document.getElementById('skin-select');
+
+// La skin se puede cambiar en cualquier momento, también a mitad de partida.
+function applySkin(name) {
+  if (!Object.hasOwn(SKINS, name)) name = 'retro';
+  skin = SKINS[name];
+  skinSelect.value = name;
+  document.documentElement.dataset.skin = name;
+  redraw();
+}
+
+skinSelect.addEventListener('change', () => {
+  try { localStorage.setItem('skin', skinSelect.value); } catch (e) {}
+  applySkin(skinSelect.value);
+  skinSelect.blur(); // evita que las flechas cambien la skin mientras se juega
+});
+
+let savedSkin = null;
+try { savedSkin = localStorage.getItem('skin'); } catch (e) {}
+applySkin(savedSkin);
 
 let savedTheme = null;
 try { savedTheme = localStorage.getItem('theme'); } catch (e) {}
